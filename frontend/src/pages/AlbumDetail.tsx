@@ -243,8 +243,17 @@ export function AlbumDetailPage() {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => {
-                  navigator.clipboard.writeText(shareLink);
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(shareLink);
+                  } catch {
+                    const el = document.createElement('textarea');
+                    el.value = shareLink;
+                    document.body.appendChild(el);
+                    el.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(el);
+                  }
                   setCopied(true);
                   setTimeout(() => setCopied(false), 2000);
                 }}

@@ -12,6 +12,12 @@ export async function syncAdminUser() {
     create: { name: 'Administrador', slug: 'admin' },
   });
 
+  await prisma.role.upsert({
+    where: { slug: 'user' },
+    update: {},
+    create: { name: 'Usuário', slug: 'user' },
+  });
+
   const adminEmail = env.ADMIN_EMAIL;
 
   await prisma.user.updateMany({

@@ -28,17 +28,17 @@ export class AlbumController {
   }
 
   async update(request: FastifyRequest, reply: FastifyReply) {
-    const { userId } = request as AuthenticatedRequest;
+    const { userId, userRole } = request as AuthenticatedRequest;
     const { id } = request.params as { id: string };
     const data = updateAlbumSchema.parse(request.body);
-    const album = await albumService.update(userId, id, data);
+    const album = await albumService.update(userId, userRole, id, data);
     return reply.send(album);
   }
 
   async delete(request: FastifyRequest, reply: FastifyReply) {
-    const { userId } = request as AuthenticatedRequest;
+    const { userId, userRole } = request as AuthenticatedRequest;
     const { id } = request.params as { id: string };
-    await albumService.delete(userId, id);
+    await albumService.delete(userId, userRole, id);
     return reply.send({ message: 'Álbum excluído com sucesso' });
   }
 }

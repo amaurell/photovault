@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import Fastify from 'fastify';
+import Fastify, { type FastifyError } from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
@@ -24,7 +24,7 @@ const env = getEnv();
 
 export async function buildApp(opts?: { serverless?: boolean }) {
   const app = Fastify({
-    logger: appLogger,
+    loggerInstance: appLogger,
     bodyLimit: env.MAX_FILE_SIZE,
   });
 
@@ -81,7 +81,7 @@ export async function buildApp(opts?: { serverless?: boolean }) {
     });
   }
 
-  app.setErrorHandler((error, _request, reply) => {
+  app.setErrorHandler<FastifyError>((error, _request, reply) => {
     errorLogger.error({ err: error }, error.message);
 
     if (error.validation) {

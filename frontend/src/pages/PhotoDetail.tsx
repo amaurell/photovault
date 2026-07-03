@@ -32,6 +32,7 @@ export function PhotoDetailPage() {
       await queryClient.invalidateQueries({ queryKey: ['favorites'] });
       await queryClient.invalidateQueries({ queryKey: ['tags'] });
       await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      await queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       navigate(albumId ? `/albums/${albumId}` : '/photos');
     },
     onError: (err: Error) => {

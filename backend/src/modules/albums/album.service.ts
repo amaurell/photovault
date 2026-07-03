@@ -70,11 +70,12 @@ export class AlbumService {
     return album;
   }
 
-  async update(userId: string, id: string, data: UpdateAlbumInput) {
+  async update(userId: string, userRole: string, id: string, data: UpdateAlbumInput) {
     const prisma = getPrisma();
-    const album = await prisma.album.findFirst({
-      where: { id, userId, deletedAt: null },
-    });
+    const where: Prisma.AlbumWhereInput = { id, deletedAt: null };
+    if (userRole !== 'admin') where.userId = userId;
+
+    const album = await prisma.album.findFirst({ where });
     if (!album) throw new Error('Álbum não encontrado');
 
     const updated = await prisma.album.update({
@@ -85,11 +86,12 @@ export class AlbumService {
     return updated;
   }
 
-  async delete(userId: string, id: string) {
+  async delete(userId: string, userRole: string, id: string) {
     const prisma = getPrisma();
-    const album = await prisma.album.findFirst({
-      where: { id, userId, deletedAt: null },
-    });
+    const where: Prisma.AlbumWhereInput = { id, deletedAt: null };
+    if (userRole !== 'admin') where.userId = userId;
+
+    const album = await prisma.album.findFirst({ where });
     if (!album) throw new Error('Álbum não encontrado');
 
     const photos = await prisma.photo.findMany({ where: { albumId: id } });

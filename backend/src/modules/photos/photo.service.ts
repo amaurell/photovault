@@ -142,15 +142,17 @@ export class PhotoService {
     };
   }
 
-  async move(userId: string, id: string, data: MovePhotoInput) {
+  async move(userId: string, userRole: string, id: string, data: MovePhotoInput) {
     const prisma = getPrisma();
-    const photo = await prisma.photo.findFirst({
-      where: { id, userId, deletedAt: null },
-    });
+    const where: Prisma.PhotoWhereInput = { id, deletedAt: null };
+    if (userRole !== 'admin') where.userId = userId;
+
+    const photo = await prisma.photo.findFirst({ where });
     if (!photo) throw new Error('Foto não encontrada');
 
+    const albumUserId = userRole === 'admin' ? photo.userId : userId;
     const album = await prisma.album.findFirst({
-      where: { id: data.albumId, userId, deletedAt: null },
+      where: { id: data.albumId, userId: albumUserId, deletedAt: null },
     });
     if (!album) throw new Error('Álbum de destino não encontrado');
 
@@ -162,11 +164,12 @@ export class PhotoService {
     return updated;
   }
 
-  async delete(userId: string, id: string) {
+  async deletePhoto(userId: string, userRole: string, id: string) {
     const prisma = getPrisma();
-    const photo = await prisma.photo.findFirst({
-      where: { id, userId, deletedAt: null },
-    });
+    const where: Prisma.PhotoWhereInput = { id, deletedAt: null };
+    if (userRole !== 'admin') where.userId = userId;
+
+    const photo = await prisma.photo.findFirst({ where });
     if (!photo) throw new Error('Foto não encontrada');
 
     await prisma.photoTag.deleteMany({ where: { photoId: id } });
@@ -181,11 +184,12 @@ export class PhotoService {
     appLogger.info({ photoId: id, userId }, 'Photo deleted');
   }
 
-  async updateCaption(userId: string, photoId: string, caption: string) {
+  async updateCaption(userId: string, userRole: string, photoId: string, caption: string) {
     const prisma = getPrisma();
-    const photo = await prisma.photo.findFirst({
-      where: { id: photoId, userId, deletedAt: null },
-    });
+    const where: Prisma.PhotoWhereInput = { id: photoId, deletedAt: null };
+    if (userRole !== 'admin') where.userId = userId;
+
+    const photo = await prisma.photo.findFirst({ where });
     if (!photo) throw new Error('Foto não encontrada');
     return prisma.photo.update({
       where: { id: photoId },
@@ -208,11 +212,12 @@ export class PhotoService {
     return { favorited: true };
   }
 
-  async addTags(userId: string, photoId: string, data: AddTagsInput) {
+  async addTags(userId: string, userRole: string, photoId: string, data: AddTagsInput) {
     const prisma = getPrisma();
-    const photo = await prisma.photo.findFirst({
-      where: { id: photoId, userId, deletedAt: null },
-    });
+    const where: Prisma.PhotoWhereInput = { id: photoId, deletedAt: null };
+    if (userRole !== 'admin') where.userId = userId;
+
+    const photo = await prisma.photo.findFirst({ where });
     if (!photo) throw new Error('Foto não encontrada');
 
     for (const tagName of data.tags) {
@@ -238,11 +243,12 @@ export class PhotoService {
     return photoWithTags?.tags.map((pt) => pt.tag) || [];
   }
 
-  async removeTag(userId: string, photoId: string, tagSlug: string) {
+  async removeTag(userId: string, userRole: string, photoId: string, tagSlug: string) {
     const prisma = getPrisma();
-    const photo = await prisma.photo.findFirst({
-      where: { id: photoId, userId, deletedAt: null },
-    });
+    const where: Prisma.PhotoWhereInput = { id: photoId, deletedAt: null };
+    if (userRole !== 'admin') where.userId = userId;
+
+    const photo = await prisma.photo.findFirst({ where });
     if (!photo) throw new Error('Foto não encontrada');
 
     const tag = await prisma.tag.findUnique({ where: { slug: tagSlug } });

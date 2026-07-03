@@ -22,6 +22,7 @@ export function AlbumDetailPage() {
   const pendingCaptions = useRef(0);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareLink, setShareLink] = useState('');
+  const [copied, setCopied] = useState(false);
 
   const { data: album, isLoading } = useQuery({
     queryKey: ['album', id],
@@ -242,9 +243,13 @@ export function AlbumDetailPage() {
               <Button
                 variant="outline"
                 size="icon"
-                onClick={() => { navigator.clipboard.writeText(shareLink); }}
+                onClick={() => {
+                  navigator.clipboard.writeText(shareLink);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
               >
-                <Copy className="h-4 w-4" />
+                {copied ? <span className="text-xs">OK</span> : <Copy className="h-4 w-4" />}
               </Button>
             </div>
           </div>

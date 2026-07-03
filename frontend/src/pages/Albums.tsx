@@ -4,9 +4,9 @@ import { api } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Plus, FolderOpen, Image, ArrowLeft } from 'lucide-react';
+import { Plus, FolderOpen, Image, ArrowLeft, Trash2 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -25,6 +25,7 @@ export function AlbumsPage() {
   const [searchParams] = useSearchParams();
   const adminUserId = searchParams.get('userId') || '';
   const [open, setOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<AlbumForm>({
     resolver: zodResolver(albumSchema),
@@ -45,6 +46,16 @@ export function AlbumsPage() {
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       setOpen(false);
       reset();
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (albumId: string) => api.delete(`/albums/${albumId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['albums'] });
+      queryClient.invalidateQueries({ queryKey: ['favorites'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
     },
   });
 
@@ -107,31 +118,69 @@ export function AlbumsPage() {
           <p className="text-sm">Crie seu primeiro álbum para começar</p>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {data?.data?.map((album: any) => (
-            <Card
-              key={album.id}
-              className="cursor-pointer transition-colors hover:bg-secondary/50"
-              onClick={() => navigate(`/albums/${album.id}`)}
-            >
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FolderOpen className="h-5 w-5 text-primary" />
-                  {album.title}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {album.description && (
-                  <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{album.description}</p>
-                )}
-                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <Image className="h-4 w-4" />
-                  <span>{album._count?.photos || 0} fotos</span>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {data?.data?.map((album: any) => (
+              <div key={album.id} className="relative group">
+                <Card
+                  className="cursor-pointer transition-colors hover:bg-secondary/50"
+                  onClick={() => navigate(`/albums/${album.id}`)}
+                >
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <FolderOpen className="h-5 w-5 text-primary" />
+                      {album.title}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {album.description && (
+                      <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{album.description}</p>
+                    )}
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <Image className="h-4 w-4" />
+                      <span>{album._count?.photos || 0} fotos</span>
+                    </div>
+                  </CardContent>
+                </Card>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setConfirmDelete(album.id); }}
+                  className="absolute top-3 right-3 z-10 rounded-full bg-background/80 p-1.5 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100 shadow-sm border"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <Dialog open={!!confirmDelete} onOpenChange={(o) => { if (!o) setConfirmDelete(null); }}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle>Excluir Álbum</DialogTitle>
+              </DialogHeader>
+              <p className="text-sm text-muted-foreground">
+                Tem certeza que deseja excluir este álbum e todas as suas fotos? Esta ação não pode ser desfeita.
+              </p>
+              <div className="flex justify-end gap-2">
+                <DialogClose asChild>
+                  <Button variant="outline" size="sm">Cancelar</Button>
+                </DialogClose>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={deleteMutation.isPending}
+                  onClick={() => {
+                    if (confirmDelete) {
+                      deleteMutation.mutate(confirmDelete);
+                      setConfirmDelete(null);
+                    }
+                  }}
+                >
+                  {deleteMutation.isPending ? 'Excluindo...' : 'Excluir'}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </>
       )}
     </div>
   );

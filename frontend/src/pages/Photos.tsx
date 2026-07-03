@@ -20,7 +20,7 @@ export function PhotosPage() {
   if (adminUserId) params.set('userId', adminUserId);
 
   const { data: carouselData } = useQuery({
-    queryKey: ['photos-carousel', adminUserId],
+    queryKey: ['photos', 'carousel', adminUserId],
     queryFn: () => api.get<any>(`/photos?${params.toString()}`),
   });
 

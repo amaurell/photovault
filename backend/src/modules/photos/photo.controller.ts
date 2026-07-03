@@ -49,25 +49,25 @@ export class PhotoController {
   }
 
   async move(request: FastifyRequest, reply: FastifyReply) {
-    const { userId } = request as AuthenticatedRequest;
+    const { userId, userRole } = request as AuthenticatedRequest;
     const { id } = request.params as { id: string };
     const data = movePhotoSchema.parse(request.body);
-    const photo = await photoService.move(userId, id, data);
+    const photo = await photoService.move(userId, userRole, id, data);
     return reply.send(photo);
   }
 
   async delete(request: FastifyRequest, reply: FastifyReply) {
-    const { userId } = request as AuthenticatedRequest;
+    const { userId, userRole } = request as AuthenticatedRequest;
     const { id } = request.params as { id: string };
-    await photoService.delete(userId, id);
+    await photoService.deletePhoto(userId, userRole, id);
     return reply.send({ message: 'Foto excluída com sucesso' });
   }
 
   async updateCaption(request: FastifyRequest, reply: FastifyReply) {
-    const { userId } = request as AuthenticatedRequest;
+    const { userId, userRole } = request as AuthenticatedRequest;
     const { id } = request.params as { id: string };
     const data = updateCaptionSchema.parse(request.body);
-    const photo = await photoService.updateCaption(userId, id, data.caption ?? '');
+    const photo = await photoService.updateCaption(userId, userRole, id, data.caption ?? '');
     return reply.send(photo);
   }
 
@@ -79,17 +79,17 @@ export class PhotoController {
   }
 
   async addTags(request: FastifyRequest, reply: FastifyReply) {
-    const { userId } = request as AuthenticatedRequest;
+    const { userId, userRole } = request as AuthenticatedRequest;
     const { id } = request.params as { id: string };
     const data = addTagsSchema.parse(request.body);
-    const tags = await photoService.addTags(userId, id, data);
+    const tags = await photoService.addTags(userId, userRole, id, data);
     return reply.send(tags);
   }
 
   async removeTag(request: FastifyRequest, reply: FastifyReply) {
-    const { userId } = request as AuthenticatedRequest;
+    const { userId, userRole } = request as AuthenticatedRequest;
     const { id, slug } = request.params as { id: string; slug: string };
-    await photoService.removeTag(userId, id, slug);
+    await photoService.removeTag(userId, userRole, id, slug);
     return reply.send({ message: 'Tag removida' });
   }
 
@@ -105,7 +105,7 @@ export class PhotoController {
     else imageUrl = photo.originalUrl;
 
     if (imageUrl.startsWith('http')) {
-      return reply.redirect(302, imageUrl);
+      return reply.redirect(imageUrl, 302);
     }
 
     const env = getEnv();

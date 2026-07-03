@@ -1,0 +1,216 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  avatarUrl    String?  @map("avatar_url")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  roleId    String @map("role_id")
+  role      Role   @relation(fields: [roleId], references: [id])
+
+  albums       Album[]
+  photos       Photo[]
+  favorites    Favorite[]
+  sharedLinks  SharedLink[]
+  sessions     Session[]
+  consentLgpd  ConsentLgpd[]
+  auditLogs    AuditLog[]
+
+  @@map("users")
+}
+
+model Role {
+  id        String       @id @default(cuid())
+  name      String       @unique
+  slug      String       @unique
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+  users     User[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id        String       @id @default(cuid())
+  name      String       @unique
+  slug      String       @unique
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+  roles     RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String     @map("role_id")
+  permissionId String     @map("permission_id")
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model Album {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  coverUrl    String?  @map("cover_url")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id])
+
+  photos      Photo[]
+  sharedLinks SharedLink[]
+
+  @@map("albums")
+}
+
+model Photo {
+  id          String   @id @default(cuid())
+  filename    String
+  originalName String @map("original_name")
+  caption     String?
+  mimeType    String   @map("mime_type")
+  size        Int
+  width       Int?
+  height      Int?
+  thumbnailUrl String? @map("thumbnail_url")
+  previewUrl  String?  @map("preview_url")
+  originalUrl String   @map("original_url")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  albumId String @map("album_id")
+  album   Album  @relation(fields: [albumId], references: [id])
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id])
+
+  tags      PhotoTag[]
+  favorites Favorite[]
+
+  @@map("photos")
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+
+  photos PhotoTag[]
+
+  @@map("tags")
+}
+
+model PhotoTag {
+  photoId String @map("photo_id")
+  tagId   String @map("tag_id")
+  photo   Photo  @relation(fields: [photoId], references: [id])
+  tag     Tag    @relation(fields: [tagId], references: [id])
+
+  @@id([photoId, tagId])
+  @@map("photo_tags")
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now()) @map("created_at")
+
+  photoId String @map("photo_id")
+  photo   Photo  @relation(fields: [photoId], references: [id])
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([userId, photoId])
+  @@map("favorites")
+}
+
+model SharedLink {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  expiresAt DateTime? @map("expires_at")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id])
+
+  albumId String? @map("album_id")
+  album   Album?  @relation(fields: [albumId], references: [id])
+
+  @@map("shared_links")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  refreshToken String   @unique @map("refresh_token")
+  userAgent    String?  @map("user_agent")
+  ipAddress    String?  @map("ip_address")
+  expiresAt    DateTime @map("expires_at")
+  revokedAt    DateTime? @map("revoked_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@map("sessions")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  userId String? @map("user_id")
+  user   User?   @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
+model ConsentLgpd {
+  id          String   @id @default(cuid())
+  version     String
+  accepted    Boolean
+  acceptedAt  DateTime? @map("accepted_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@map("consent_lgpd")
+}
+
+model AccessSchedule {
+  id        String   @id @default(cuid())
+  startTime String   @map("start_time")
+  endTime   String   @map("end_time")
+  enabled   Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("access_schedules")
+}

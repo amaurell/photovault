@@ -4,12 +4,36 @@ import {
   loginSchema,
   registerSchema,
   changePasswordSchema,
-  refreshTokenSchema,
   consentSchema,
 } from '../../common/schemas/auth.schema';
 import type { AuthenticatedRequest } from '../../common/types';
+import { getEnv } from '../../config/env';
+
+const REFRESH_COOKIE = 'refreshToken';
 
 const authService = new AuthService();
+
+function setRefreshCookie(reply: FastifyReply, token: string) {
+  const isProd = getEnv().NODE_ENV === 'production';
+  reply.setCookie(REFRESH_COOKIE, token, {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: 'strict',
+    path: '/api/auth',
+    maxAge: 7 * 24 * 60 * 60,
+  });
+}
+
+function clearRefreshCookie(reply: FastifyReply) {
+  reply.clearCookie(REFRESH_COOKIE, { path: '/api/auth' });
+}
+
+function getRefreshToken(request: FastifyRequest): string | null {
+  const fromCookie = request.cookies?.[REFRESH_COOKIE];
+  if (fromCookie) return fromCookie;
+  const fromBody = request.body as { refreshToken?: string };
+  return fromBody?.refreshToken || null;
+}
 
 export class AuthController {
   async login(request: FastifyRequest, reply: FastifyReply) {
@@ -17,6 +41,7 @@ export class AuthController {
     const ip = request.ip;
     const ua = request.headers['user-agent'];
     const result = await authService.login(data, ip, ua);
+    setRefreshCookie(reply, result.refreshToken);
     return reply.send(result);
   }
 
@@ -27,14 +52,17 @@ export class AuthController {
   }
 
   async refreshToken(request: FastifyRequest, reply: FastifyReply) {
-    const data = refreshTokenSchema.parse(request.body);
-    const result = await authService.refreshToken(data.refreshToken);
+    const token = getRefreshToken(request);
+    if (!token) return reply.status(400).send({ error: 'Refresh token não fornecido' });
+    const result = await authService.refreshToken(token);
+    setRefreshCookie(reply, result.refreshToken);
     return reply.send(result);
   }
 
   async logout(request: FastifyRequest, reply: FastifyReply) {
-    const data = refreshTokenSchema.parse(request.body);
-    await authService.logout(data.refreshToken);
+    const token = getRefreshToken(request);
+    if (token) await authService.logout(token);
+    clearRefreshCookie(reply);
     return reply.send({ message: 'Logout realizado com sucesso' });
   }
 

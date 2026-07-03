@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { api } from '@/services/api';
 import {
   LayoutDashboard,
   FolderOpen,
@@ -68,7 +69,7 @@ export function Sidebar() {
           </NavLink>
         )}
         <button
-          onClick={() => { logout(); window.location.href = '/login'; }}
+          onClick={async () => { try { await api.post('/auth/logout'); } catch { } logout(); window.location.href = '/login'; }}
           className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary/50 hover:text-foreground mt-4"
         >
           <LogOut className="h-4 w-4" />

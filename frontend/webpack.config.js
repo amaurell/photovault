@@ -5,7 +5,7 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 require('dotenv').config({ path: path.resolve(__dirname, '../backend/.env') });
 
 const FRONTEND_PORT = parseInt(process.env.FRONTEND_PORT || '3000', 10);
-const BACKEND_PORT = parseInt(process.env.PORT || '6153', 10);
+const BACKEND_PORT = parseInt(process.env.BACKEND_PORT || process.env.PORT || '3001', 10);
 const BACKEND_HOST = `http://localhost:${BACKEND_PORT}`;
 
 module.exports = {

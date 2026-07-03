@@ -1,8 +1,10 @@
 import * as argon2 from 'argon2';
 import { getPrisma } from './database/prisma';
+import { getEnv } from '../config/env';
 
 export async function syncAdminUser() {
   const prisma = getPrisma();
+  const env = getEnv();
 
   const adminRole = await prisma.role.upsert({
     where: { slug: 'admin' },
@@ -10,7 +12,7 @@ export async function syncAdminUser() {
     create: { name: 'Administrador', slug: 'admin' },
   });
 
-  const adminEmail = process.env.ADMIN_EMAIL || 'admin@photovault.com';
+  const adminEmail = env.ADMIN_EMAIL;
 
   await prisma.user.updateMany({
     where: { roleId: adminRole.id, email: { not: adminEmail }, active: true },
@@ -19,17 +21,17 @@ export async function syncAdminUser() {
 
   const existingAdmin = await prisma.user.findUnique({ where: { email: adminEmail } });
 
-  const passwordHash = await argon2.hash(process.env.ADMIN_PASSWORD || 'Admin123!', {
+  const passwordHash = await argon2.hash(env.ADMIN_PASSWORD, {
     type: argon2.argon2id,
-    memoryCost: Number(process.env.ARGON2_MEMORY_COST) || 19456,
-    timeCost: Number(process.env.ARGON2_TIME_COST) || 2,
-    parallelism: Number(process.env.ARGON2_PARALLELISM) || 1,
+    memoryCost: env.ARGON2_MEMORY_COST,
+    timeCost: env.ARGON2_TIME_COST,
+    parallelism: env.ARGON2_PARALLELISM,
   });
 
   if (!existingAdmin) {
     await prisma.user.create({
       data: {
-        name: process.env.ADMIN_NAME || 'Admin',
+        name: env.ADMIN_NAME,
         email: adminEmail,
         passwordHash,
         roleId: adminRole.id,
@@ -40,7 +42,7 @@ export async function syncAdminUser() {
     await prisma.user.update({
       where: { email: adminEmail },
       data: {
-        name: process.env.ADMIN_NAME || 'Admin',
+        name: env.ADMIN_NAME,
         passwordHash,
         active: true,
       },

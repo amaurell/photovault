@@ -47,6 +47,7 @@ export class AuthService {
           entity: 'user',
           entityId: user.id,
           userId: user.id,
+          metadata: ipAddress ? { ip: ipAddress } : undefined,
         },
       });
       securityLogger.warn({ userId: user.id, ip: ipAddress }, 'login_failed_wrong_password');
@@ -132,6 +133,17 @@ export class AuthService {
 
     if (!session || session.revokedAt || session.expiresAt < new Date()) {
       throw new Error('Sessão inválida ou expirada');
+    }
+
+    const activeSessions = await prisma.session.count({
+      where: { userId: session.user.id, revokedAt: null, expiresAt: { gte: new Date() } },
+    });
+
+    if (activeSessions > 20) {
+      await prisma.session.updateMany({
+        where: { userId: session.user.id, revokedAt: null, id: { not: session.id } },
+        data: { revokedAt: new Date() },
+      });
     }
 
     await prisma.session.update({
@@ -222,11 +234,12 @@ export class AuthService {
   }
 
   private async hashPassword(password: string): Promise<string> {
+    const env = getEnv();
     return argon2.hash(password, {
       type: argon2.argon2id,
-      memoryCost: Number(process.env.ARGON2_MEMORY_COST) || 19456,
-      timeCost: Number(process.env.ARGON2_TIME_COST) || 2,
-      parallelism: Number(process.env.ARGON2_PARALLELISM) || 1,
+      memoryCost: env.ARGON2_MEMORY_COST,
+      timeCost: env.ARGON2_TIME_COST,
+      parallelism: env.ARGON2_PARALLELISM,
     });
   }
 }

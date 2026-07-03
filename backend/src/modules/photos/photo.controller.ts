@@ -1,10 +1,12 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { PhotoService } from './photo.service';
-import { photoQuerySchema, movePhotoSchema, addTagsSchema } from '../../common/schemas/photo.schema';
+import { photoQuerySchema, movePhotoSchema, addTagsSchema, updateCaptionSchema } from '../../common/schemas/photo.schema';
 import type { AuthenticatedRequest } from '../../common/types';
 import path from 'path';
 import fs from 'fs';
 import { getEnv } from '../../config/env';
+
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif', 'image/tiff'];
 
 const photoService = new PhotoService();
 
@@ -14,10 +16,14 @@ export class PhotoController {
     const file = await request.file();
     if (!file) return reply.status(400).send({ error: 'Arquivo não enviado' });
 
-    const albumId = file.fields.albumId?.value as string;
+    const albumId = (file.fields.albumId as any)?.value as string;
     if (!albumId) return reply.status(400).send({ error: 'Álbum não especificado' });
 
-    const caption = file.fields.caption?.value as string | undefined;
+    const caption = (file.fields.caption as any)?.value as string | undefined;
+
+    if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+      return reply.status(400).send({ error: `Tipo de arquivo não permitido: ${file.mimetype}` });
+    }
 
     const buffer = await file.toBuffer();
     const photo = await photoService.upload(userId, albumId, {
@@ -60,8 +66,8 @@ export class PhotoController {
   async updateCaption(request: FastifyRequest, reply: FastifyReply) {
     const { userId } = request as AuthenticatedRequest;
     const { id } = request.params as { id: string };
-    const { caption } = request.body as { caption?: string };
-    const photo = await photoService.updateCaption(userId, id, caption ?? '');
+    const data = updateCaptionSchema.parse(request.body);
+    const photo = await photoService.updateCaption(userId, id, data.caption ?? '');
     return reply.send(photo);
   }
 
@@ -103,7 +109,13 @@ export class PhotoController {
     }
 
     const env = getEnv();
-    const fullPath = path.resolve(env.UPLOAD_PATH, imageUrl.replace('/uploads/', ''));
+    const relativePath = imageUrl.replace('/uploads/', '');
+    const normalizedPath = path.normalize(relativePath).replace(/^(\.\.(\/|\\|$))+/, '');
+    const fullPath = path.resolve(env.UPLOAD_PATH, normalizedPath);
+
+    if (!fullPath.startsWith(path.resolve(env.UPLOAD_PATH))) {
+      return reply.status(403).send({ error: 'Acesso negado' });
+    }
 
     if (!fs.existsSync(fullPath)) {
       return reply.status(404).send({ error: 'Arquivo não encontrado' });

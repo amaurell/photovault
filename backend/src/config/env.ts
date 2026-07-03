@@ -14,7 +14,7 @@ const envSchema = z.object({
   ARGON2_PARALLELISM: z.coerce.number().default(1),
   ADMIN_NAME: z.string().default('Admin'),
   ADMIN_EMAIL: z.string().email().default('admin@photovault.com'),
-  ADMIN_PASSWORD: z.string().min(8).default('Admin123!'),
+  ADMIN_PASSWORD: z.string().min(8, 'ADMIN_PASSWORD deve ter no mínimo 8 caracteres'),
   UPLOAD_PATH: z.string().default('./uploads'),
   MAX_FILE_SIZE: z.coerce.number().default(20971520),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),

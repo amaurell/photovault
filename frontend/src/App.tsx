@@ -4,8 +4,9 @@ import { useAuthStore } from '@/store/auth';
 import { api } from '@/services/api';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Topbar } from '@/components/layout/topbar';
+import { LgpdBanner } from '@/components/layout/lgpd-banner';
 import { Clock } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { LoginPage } from '@/pages/Login';
 import { RegisterPage } from '@/pages/Register';
 import { DashboardPage } from '@/pages/Dashboard';
@@ -29,7 +30,6 @@ const queryClient = new QueryClient({
 function ProtectedLayout() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const refreshUser = useAuthStore((s) => s.refreshUser);
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   useEffect(() => { refreshUser(); }, [refreshUser]);
 
@@ -40,6 +40,8 @@ function ProtectedLayout() {
   });
 
   const isBlocked = access?.blocked === true;
+
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
 
   return (
     <div className="min-h-screen bg-background">
@@ -59,10 +61,11 @@ function ProtectedLayout() {
       <Sidebar />
       <Topbar />
       <main className="pl-64 pt-14">
-        <div className="p-6">
+        <div className="p-6 pb-20">
           <Outlet />
         </div>
       </main>
+      <LgpdBanner />
     </div>
   );
 }
@@ -73,33 +76,70 @@ function PublicLayout() {
   return <Outlet />;
 }
 
+function AuthInitializer({ children }: { children: React.ReactNode }) {
+  const [ready, setReady] = useState(false);
+  const setUser = useAuthStore((s) => s.setUser);
+  const setTokens = useAuthStore((s) => s.setTokens);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const refreshed = await api.refreshOnInit();
+        if (refreshed) {
+          const user = await api.get<{ id: string; name: string; email: string; avatarUrl?: string; role: string }>('/auth/me');
+          setUser(user);
+        }
+      } catch {
+        setTokens(null as any);
+      } finally {
+        setReady(true);
+      }
+    })();
+  }, []);
+
+  if (!ready) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
+          <p className="mt-4 text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
+
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Routes>
-          <Route element={<PublicLayout />}>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-          </Route>
+        <AuthInitializer>
+          <Routes>
+            <Route element={<PublicLayout />}>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+            </Route>
 
-          <Route path="/shared/token/:token" element={<SharedViewPage />} />
+            <Route path="/shared/token/:token" element={<SharedViewPage />} />
 
-          <Route element={<ProtectedLayout />}>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/albums" element={<AlbumsPage />} />
-            <Route path="/albums/:id" element={<AlbumDetailPage />} />
-            <Route path="/photos" element={<PhotosPage />} />
-            <Route path="/photos/:id" element={<PhotoDetailPage />} />
-            <Route path="/tags" element={<TagsPage />} />
-            <Route path="/favorites" element={<FavoritesPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/shared" element={<SharedPage />} />
-            <Route path="/admin" element={<AdminPage />} />
-          </Route>
+            <Route element={<ProtectedLayout />}>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/albums" element={<AlbumsPage />} />
+              <Route path="/albums/:id" element={<AlbumDetailPage />} />
+              <Route path="/photos" element={<PhotosPage />} />
+              <Route path="/photos/:id" element={<PhotoDetailPage />} />
+              <Route path="/tags" element={<TagsPage />} />
+              <Route path="/favorites" element={<FavoritesPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/shared" element={<SharedPage />} />
+              <Route path="/admin" element={<AdminPage />} />
+            </Route>
 
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </AuthInitializer>
       </BrowserRouter>
     </QueryClientProvider>
   );

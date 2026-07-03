@@ -1,10 +1,16 @@
-declare const API_URL: string;
+let accessToken: string | null = null;
+let refreshPromise: Promise<boolean> | null = null;
 
 function getBaseUrl(): string {
-  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-    return '/api';
-  }
-  return API_URL || 'http://localhost:3001';
+  return '/api';
+}
+
+export function setAccessToken(token: string | null) {
+  accessToken = token;
+}
+
+export function getAccessToken(): string | null {
+  return accessToken;
 }
 
 class ApiClient {
@@ -17,8 +23,7 @@ class ApiClient {
   private getHeaders(contentType?: boolean): Record<string, string> {
     const headers: Record<string, string> = {};
     if (contentType !== false) headers['Content-Type'] = 'application/json';
-    const token = localStorage.getItem('accessToken');
-    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
     return headers;
   }
 
@@ -28,6 +33,7 @@ class ApiClient {
     const options: RequestInit = {
       method,
       headers: this.getHeaders(hasJsonBody),
+      credentials: 'include',
     };
 
     if (hasJsonBody) {
@@ -36,7 +42,7 @@ class ApiClient {
       options.body = body;
     }
 
-    const response = await fetch(url, options);
+    let response = await fetch(url, options);
 
     if (response.status === 401) {
       const refreshed = await this.tryRefreshToken();
@@ -44,18 +50,16 @@ class ApiClient {
         const retryOptions: RequestInit = {
           method,
           headers: this.getHeaders(hasJsonBody),
+          credentials: 'include',
         };
         if (hasJsonBody) retryOptions.body = JSON.stringify(body);
         else if (body instanceof FormData) retryOptions.body = body;
-        const retryResponse = await fetch(url, retryOptions);
-        if (!retryResponse.ok) {
-          const err = await retryResponse.json().catch(() => ({ error: 'Request failed' }));
-          throw new Error(err.error || 'Request failed');
-        }
-        return retryResponse.json();
+        response = await fetch(url, retryOptions);
       }
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
+    }
+
+    if (response.status === 401) {
+      accessToken = null;
       window.location.href = '/login';
       throw new Error('Sessão expirada');
     }
@@ -65,29 +69,39 @@ class ApiClient {
       throw new Error(err.error || 'Request failed');
     }
 
+    if (response.status === 204) return undefined as T;
     return response.json();
   }
 
   private async tryRefreshToken(): Promise<boolean> {
-    const refreshToken = localStorage.getItem('refreshToken');
-    if (!refreshToken) return false;
+    if (refreshPromise) return refreshPromise;
 
-    try {
-      const response = await fetch(`${this.baseUrl}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
-      });
+    refreshPromise = (async () => {
+      try {
+        const response = await fetch(`${this.baseUrl}/auth/refresh`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+        });
 
-      if (!response.ok) return false;
+        if (!response.ok) return false;
 
-      const data = await response.json();
-      localStorage.setItem('accessToken', data.accessToken);
-      localStorage.setItem('refreshToken', data.refreshToken);
-      return true;
-    } catch {
-      return false;
-    }
+        const data = await response.json();
+        accessToken = data.accessToken;
+        return true;
+      } catch {
+        return false;
+      } finally {
+        refreshPromise = null;
+      }
+    })();
+
+    return refreshPromise;
+  }
+
+  async refreshOnInit(): Promise<boolean> {
+    if (accessToken) return true;
+    return this.tryRefreshToken();
   }
 
   get<T>(path: string) { return this.request<T>('GET', path); }

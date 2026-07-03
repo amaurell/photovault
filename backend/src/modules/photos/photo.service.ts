@@ -1,4 +1,5 @@
 import path from 'path';
+import crypto from 'crypto';
 import { getPrisma } from '../../common/database/prisma';
 import { appLogger } from '../../config/logger';
 import type { PhotoQueryInput, MovePhotoInput, AddTagsInput } from '../../common/schemas/photo.schema';
@@ -22,7 +23,7 @@ export class PhotoService {
     if (!album) throw new Error('Álbum não encontrado');
 
     const ext = path.extname(file.filename) || '.jpg';
-    const baseName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    const baseName = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}`;
 
     const { original, preview, thumbnail } = await processImage(file.data, file.filename);
 

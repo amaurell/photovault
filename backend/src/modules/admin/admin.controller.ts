@@ -1,5 +1,6 @@
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { AdminService } from './admin.service';
+import { resetPasswordSchema, updateScheduleSchema } from '../../common/schemas/admin.schema';
 import type { AuthenticatedRequest } from '../../common/types';
 
 const adminService = new AdminService();
@@ -24,11 +25,8 @@ export class AdminController {
 
   async resetPassword(request: FastifyRequest, reply: FastifyReply) {
     const { id } = request.params as { id: string };
-    const { password } = request.body as { password: string };
-    if (!password || password.length < 6) {
-      return reply.status(400).send({ error: 'Senha deve ter no mínimo 6 caracteres' });
-    }
-    await adminService.resetPassword(id, password);
+    const data = resetPasswordSchema.parse(request.body);
+    await adminService.resetPassword(id, data.password);
     return reply.send({ message: 'Senha redefinida' });
   }
 
@@ -38,12 +36,8 @@ export class AdminController {
   }
 
   async updateSchedule(request: FastifyRequest, reply: FastifyReply) {
-    const { startTime, endTime, enabled } = request.body as {
-      startTime: string;
-      endTime: string;
-      enabled: boolean;
-    };
-    const schedule = await adminService.updateSchedule(startTime, endTime, enabled);
+    const data = updateScheduleSchema.parse(request.body);
+    const schedule = await adminService.updateSchedule(data.startTime, data.endTime, data.enabled);
     return reply.send(schedule);
   }
 

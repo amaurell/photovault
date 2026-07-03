@@ -31,8 +31,8 @@ export function LoginPage() {
     setError('');
     try {
       const result = await api.post<{ user: any; accessToken: string; refreshToken: string }>('/auth/login', data);
-      localStorage.setItem('accessToken', result.accessToken);
-      localStorage.setItem('refreshToken', result.refreshToken);
+      const { setTokens } = useAuthStore.getState();
+      setTokens(result.accessToken);
       setUser(result.user);
       navigate('/');
     } catch (err: any) {

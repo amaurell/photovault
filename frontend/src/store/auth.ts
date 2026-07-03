@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { setAccessToken } from '@/services/api';
 
 interface User {
   id: string;
@@ -12,45 +13,36 @@ interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   setUser: (user: User) => void;
+  setTokens: (accessToken: string) => void;
   refreshUser: () => Promise<void>;
   logout: () => void;
   hasConsent: boolean;
   setHasConsent: (v: boolean) => void;
 }
 
-function getStoredUser(): User | null {
-  try {
-    const stored = localStorage.getItem('user');
-    return stored ? JSON.parse(stored) : null;
-  } catch {
-    return null;
-  }
-}
-
 export const useAuthStore = create<AuthState>((set, get) => ({
-  user: getStoredUser(),
-  isAuthenticated: !!localStorage.getItem('accessToken'),
+  user: null,
+  isAuthenticated: false,
   hasConsent: false,
   setUser: (user) => {
-    localStorage.setItem('user', JSON.stringify(user));
     set({ user, isAuthenticated: true });
   },
+  setTokens: (token) => {
+    setAccessToken(token);
+  },
   refreshUser: async () => {
-    if (!get().user && get().isAuthenticated) {
+    if (!get().user) {
       try {
         const { api } = await import('@/services/api');
         const user = await api.get<User>('/auth/me');
-        localStorage.setItem('user', JSON.stringify(user));
-        set({ user });
+        set({ user, isAuthenticated: true });
       } catch {
         set({ user: null, isAuthenticated: false });
       }
     }
   },
   logout: () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
+    setAccessToken(null);
     set({ user: null, isAuthenticated: false });
   },
   setHasConsent: (v) => set({ hasConsent: v }),

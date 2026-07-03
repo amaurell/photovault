@@ -11,10 +11,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await app.ready();
   }
 
-  // Strip /api prefix from URL so Fastify routes match correctly
   if (req.url?.startsWith(API_PREFIX)) {
     req.url = req.url.slice(API_PREFIX.length) || '/';
   }
+
+  res.setHeader('X-RateLimit-Limit', '60');
+  res.setHeader('X-RateLimit-Window', '1 minute');
 
   await new Promise<void>((resolve, reject) => {
     res.on('finish', resolve);

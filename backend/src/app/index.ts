@@ -4,6 +4,7 @@ import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import multipart from '@fastify/multipart';
+import cookie from '@fastify/cookie';
 import fastifyStatic from '@fastify/static';
 import fastifySwagger from '@fastify/swagger';
 import fastifySwaggerUi from '@fastify/swagger-ui';
@@ -30,6 +31,7 @@ export async function buildApp(opts?: { serverless?: boolean }) {
   await app.register(helmet, {
     contentSecurityPolicy: env.NODE_ENV === 'production' ? undefined : false,
     crossOriginResourcePolicy: { policy: 'same-origin' },
+    hsts: env.NODE_ENV === 'production' ? { maxAge: 31536000, includeSubDomains: true, preload: true } : false,
   });
 
   await app.register(cors, {
@@ -43,6 +45,10 @@ export async function buildApp(opts?: { serverless?: boolean }) {
       timeWindow: '1 minute',
     });
   }
+
+  await app.register(cookie, {
+    secret: env.COOKIE_SECRET,
+  });
 
   await app.register(multipart, {
     limits: {
@@ -92,7 +98,7 @@ export async function buildApp(opts?: { serverless?: boolean }) {
     const statusCode = error.statusCode || 500;
     const isDev = env.NODE_ENV === 'development';
     return reply.status(statusCode).send({
-      error: isDev ? error.message : (statusCode === 500 ? 'Erro interno do servidor' : error.message),
+      error: statusCode === 500 && !isDev ? 'Erro interno do servidor' : error.message,
     });
   });
 
